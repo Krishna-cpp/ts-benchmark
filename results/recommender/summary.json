@@ -1,0 +1,118 @@
+{
+  "n_series": 600,
+  "strategies": {
+    "oracle (knows the winner in advance)": {
+      "mean_mase": 1.6232823292652876,
+      "median_mase": 1.0415813437905532,
+      "geomean_mase": 1.1310469368462683
+    },
+    "recommender, single pick": {
+      "mean_mase": 1.8511463424945744,
+      "median_mase": 1.2141096542041176,
+      "geomean_mase": 1.3262647575525863
+    },
+    "best single model, always": {
+      "mean_mase": 1.8797531389300655,
+      "median_mase": 1.2477794857949984,
+      "geomean_mase": 1.3451019000298057
+    },
+    "recommender, average of its top 3": {
+      "mean_mase": 1.8187155033285918,
+      "median_mase": 1.19898548106263,
+      "geomean_mase": 1.2985831158080983
+    },
+    "average of ETS, ARIMA, Theta, GBM-diff, always": {
+      "mean_mase": 1.843299795739643,
+      "median_mase": 1.2081561887870376,
+      "geomean_mase": 1.3160423408307642
+    },
+    "always ARIMA": {
+      "mean_mase": 1.8797531389300655,
+      "median_mase": 1.2477794857949984,
+      "geomean_mase": 1.3451019000298057
+    },
+    "always ETS": {
+      "mean_mase": 1.9217722074778059,
+      "median_mase": 1.243978087837582,
+      "geomean_mase": 1.3495347307290573
+    },
+    "always GBM-diff": {
+      "mean_mase": 2.0054049156817997,
+      "median_mase": 1.427440603830973,
+      "geomean_mase": 1.499375396878646
+    },
+    "always GBM-level": {
+      "mean_mase": 4.333383132278969,
+      "median_mase": 1.896479762333336,
+      "geomean_mase": 2.3861524558371516
+    },
+    "always Naive": {
+      "mean_mase": 2.2746929776758105,
+      "median_mase": 1.4852427931118197,
+      "geomean_mase": 1.5899752288959368
+    },
+    "always TTM": {
+      "mean_mase": 3.733199102880561,
+      "median_mase": 1.799181546861349,
+      "geomean_mase": 2.1755652945399637
+    },
+    "always Theta": {
+      "mean_mase": 1.9770447390231365,
+      "median_mase": 1.2855069516652107,
+      "geomean_mase": 1.399238880720461
+    }
+  },
+  "top_k_better_than_fixed_combo": 0.5016666666666667,
+  "top_k_better_than_best_fixed": 0.6266666666666667,
+  "recommender_within_10pct_of_oracle": 0.5083333333333333,
+  "best_fixed_within_10pct_of_oracle": 0.47333333333333333,
+  "recommender_better_than_best_fixed": 0.37166666666666665,
+  "recommender_worse_than_best_fixed": 0.295,
+  "share_of_gap_to_oracle_closed": 0.11154016503040542,
+  "best_fixed_model": "ARIMA",
+  "winner_counts": {
+    "ARIMA": 133,
+    "Theta": 101,
+    "ETS": 99,
+    "GBM-diff": 91,
+    "Naive": 68,
+    "TTM": 55,
+    "GBM-level": 32,
+    "SeasonalNaive": 21
+  },
+  "rules_accuracy": 0.4223693498426302,
+  "runtime_seconds": 421.80228220000026,
+  "folds": 5,
+  "seed": 0,
+  "with_ttm": true,
+  "paired_tests": [
+    {
+      "label": "recommender (single pick) vs. best single model",
+      "ratio": 0.985995750599414,
+      "p": 0.012394003256740753,
+      "better": 0.37166666666666665,
+      "worse": 0.295
+    },
+    {
+      "label": "recommender (top 3 averaged) vs. best single model",
+      "ratio": 0.9654161634738032,
+      "p": 4.011714061217314e-12,
+      "better": 0.6266666666666667,
+      "worse": 0.37333333333333335
+    },
+    {
+      "label": "recommender (top 3 averaged) vs. fixed average",
+      "ratio": 0.9867335385184912,
+      "p": 0.05572744648794306,
+      "better": 0.5016666666666667,
+      "worse": 0.49833333333333335
+    },
+    {
+      "label": "fixed average vs. best single model",
+      "ratio": 0.9783960165409047,
+      "p": 1.975170726822185e-06,
+      "better": 0.5933333333333334,
+      "worse": 0.4066666666666667
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+|--- trend_strength <= 0.95
+|   |--- remainder_acf1 <= 0.32
+|   |   |--- seasonal_strength <= 0.32
+|   |   |   |--- class: foundation
+|   |   |--- seasonal_strength >  0.32
+|   |   |   |--- class: baseline
+|   |--- remainder_acf1 >  0.32
+|   |   |--- remainder_acf1 <= 0.40
+|   |   |   |--- class: foundation
+|   |   |--- remainder_acf1 >  0.40
+|   |   |   |--- class: foundation
+|--- trend_strength >  0.95
+|   |--- spectral_entropy <= 0.87
+|   |   |--- lumpiness <= 0.02
+|   |   |   |--- class: ml
+|   |   |--- lumpiness >  0.02
+|   |   |   |--- class: ml
+|   |--- spectral_entropy >  0.87
+|   |   |--- lumpiness <= 0.00
+|   |   |   |--- class: foundation
+|   |   |--- lumpiness >  0.00
+|   |   |   |--- class: baseline

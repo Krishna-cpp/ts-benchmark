@@ -6,7 +6,8 @@ I wanted to know how much the choice of forecasting model actually matters, and 
 differences you see on a leaderboard are real or just noise. So I put nine models through the
 same test on three real time series: simple baselines, classical statistics (ETS, Theta,
 SARIMA), gradient boosting, and IBM's pretrained Granite TinyTimeMixer, both out of the box and
-fine-tuned.
+fine-tuned. Then I scaled it up to 600 business series and trained a recommender that suggests
+which models to use for a new series.
 
 You can step through every forecast in the [interactive explorer](https://krishna-cpp.github.io/ts-benchmark/),
 or run a short version of the benchmark yourself in the
@@ -81,6 +82,67 @@ SARIMA (75%) and zero-shot TTM (78%) were the most overconfident.
 Keeping the naive baseline paid off. ETS with a damped trend did worse than simply repeating the
 last value on sunspots, and I wouldn't have noticed without it.
 
+## Picking a model automatically
+
+Three datasets can only show so much, so I ran the same kind of test on 600 series from the
+[M4 forecasting competition](https://github.com/Mcompetitions/M4-methods): monthly, quarterly and
+yearly data from finance, industry, macro-economics, demographics and more, with five forecasts
+per series.
+
+For each series I compute ten simple numbers from its history, such as how strong the trend and
+the yearly pattern are and how noisy it is. A random forest learns from those numbers how well
+each model is likely to do on that series. To keep the scores honest I trained it on four fifths
+of the series and tested it on the remaining fifth, five times over, so every number below comes
+from series it had never seen.
+
+| Strategy, 600 series | Mean MASE | Median MASE |
+|---|---|---|
+| Oracle (knows the winner in advance, impossible in practice) | 1.62 | 1.04 |
+| Recommender, average of its top 3 models | **1.82** | **1.20** |
+| Plain average of ETS, ARIMA, Theta and GBM on changes | 1.84 | 1.21 |
+| Recommender, its single top model | 1.85 | 1.21 |
+| Always ARIMA (the best single model) | 1.88 | 1.25 |
+| Always ETS | 1.92 | 1.24 |
+| Always IBM TTM, zero-shot | 3.73 | 1.80 |
+
+Averaging the recommender's top three cut the typical error by 3.5% compared with always using
+ARIMA, and did better on 63% of the series (paired Wilcoxon test, p < 0.001). Most of that gain
+comes from averaging itself, though. Against a plain average of four good models, the
+recommender's choice was only 1.3% better, which is not statistically significant (p = 0.056).
+So my honest summary is: averaging several decent models is the biggest win, and choosing which
+ones to average helps a little on top.
+
+The bigger lesson was about IBM's TTM. On these business series it was one of the weakest models
+when used without fine-tuning. It held up on monthly data (mean MASE 1.33 against 1.01 for ETS)
+but fell apart on yearly data (7.27 against 3.56), and its worst failures were short series with a
+strong trend, where it flattens out instead of following the trend. It won 14% of the series with
+the weakest trends and almost none of those with the strongest.
+
+![Share of series won by each kind of model, by trend strength, seasonal strength and noisiness](results/recommender/when_wins.png)
+
+You can ask the trained recommender about your own data. The CSV needs one numeric column, oldest
+value first. Here it is on the CO₂ series, which was not part of its training data:
+
+```
+$ python -m tsbench.suggest co2.csv --season 12
+526 values. Trend strength 1.00, seasonal strength 0.98, noisiness 0.34.
+
+Predicted error (MASE) per model, best first:
+  1. ARIMA           0.80   (S)ARIMA  <- use
+  2. ETS             0.82   exponential smoothing  <- use
+  3. Theta           0.94   Theta method  <- use
+  4. GBM-diff        1.05   gradient boosting on changes
+  5. SeasonalNaive   1.23   repeat the last season
+  6. GBM-level       1.44   gradient boosting on levels
+  7. Naive           1.80   repeat the last value
+  8. TTM             1.90   IBM Granite TTM, zero-shot
+
+Suggestion: average the forecasts of ARIMA, ETS, Theta.
+```
+
+That matches what the full benchmark found on CO₂. The complete study, with per-frequency tables
+and the significance tests, is in [results/recommender/REPORT.md](results/recommender/REPORT.md).
+
 ## A bug I ran into with IBM TTM
 
 TTM expects 512 past values, so shorter histories have to be padded. I first padded with zeros.
@@ -105,7 +167,7 @@ pip install -e ".[dev]"
 
 python -m tsbench --quick        # about a minute, 3 forecasts per dataset
 python -m tsbench                # the full run without IBM TTM, a few minutes
-pytest                           # 47 tests
+pytest                           # 51 tests
 ```
 
 To include IBM TTM (a CPU is enough):
@@ -114,6 +176,13 @@ To include IBM TTM (a CPU is enough):
 pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install -e ".[foundation]"
 python -m tsbench --with-ttm     # about 40 minutes on 12 cores, mostly fine-tuning
+```
+
+To rerun the 600-series study behind the recommender (downloads about 170 MB of M4 data once):
+
+```bash
+python -m tsbench.m4 --download
+python -m tsbench.recommender    # about 7 minutes on 12 cores
 ```
 
 `python -m tsbench --help` lists the other options, such as picking datasets or models,
@@ -148,18 +217,24 @@ tsbench/
   stats.py        confidence intervals and significance tests
   report.py       charts and RESULTS.md
   showcase.py     the explorer page, GIF and images in docs/
+  m4.py           loads a fixed sample of M4 competition series
+  features.py     the ten numbers that describe a series
+  recommender.py  the 600-series study and the model recommender
+  suggest.py      python -m tsbench.suggest, for your own CSV
   cli.py          python -m tsbench
-tests/            47 tests
+models/           the trained recommender
+tests/            51 tests
 notebooks/        the Colab walkthrough
 ```
 
 ## What it doesn't do (yet)
 
 The model settings are fixed rather than tuned for each forecast, so a tuned SARIMA or ETS might
-do better. Three datasets with 10 to 12 forecasts each is enough to see patterns but not to
-separate close models. Next I'd like to add Amazon's Chronos and Google's TimesFM for comparison,
-try a business dataset such as electricity demand, and run on a larger set of series from the M4
-competition.
+do better. The fine-tuned TTM is too slow to include in the 600-series study, so the recommender
+only knows zero-shot TTM. The recommender was trained on M4 series, so it may be less reliable on
+data that looks very different, such as hourly sensor readings. Next I'd like to add Amazon's
+Chronos and Google's TimesFM for comparison and try fine-tuning TTM only on the series where the
+recommender expects it to help.
 
 ## License
 

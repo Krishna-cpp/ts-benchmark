@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tsbench"
+version = "0.2.0"
+description = "Honest time-series forecasting benchmark: rolling-origin backtests, conformal intervals, significance tests, and IBM Granite TTM zero-shot"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Krishna" }]
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "scipy>=1.10",
+    "scikit-learn>=1.3",
+    "statsmodels>=0.14",
+    "matplotlib>=3.7",
+    "joblib>=1.3",
+]
+
+[project.optional-dependencies]
+foundation = ["torch>=2.1", "granite-tsfm>=0.3"]
+dev = ["pytest>=7", "ruff>=0.5"]
+
+[project.urls]
+Homepage = "https://github.com/Krishna-cpp/ts-benchmark"
+Explorer = "https://krishna-cpp.github.io/ts-benchmark/"
+
+[project.scripts]
+tsbench = "tsbench.cli:main"
+
+[tool.setuptools]
+packages = ["tsbench"]
+
+[tool.setuptools.package-data]
+tsbench = ["explorer_template.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+    "slow: end-to-end runs (deselect with -m 'not slow')",
+    "foundation: needs torch + granite-tsfm and network on first run",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "NPY"]
+ignore = ["E731", "B008", "B905"]

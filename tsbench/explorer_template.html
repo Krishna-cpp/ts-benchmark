@@ -1,0 +1,455 @@
+<title>tsbench Forecast Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Public+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a short write-up you read top to bottom. One text column; the chart and the
+   table are allowed to be wider than the text, the way figures are in a paper. */
+:root {
+  --paper: #ffffff;
+  --ink: #1b1b1b;
+  --ink-soft: #555555;
+  --ink-faint: #8c8c8c;
+  --line: #e2e2e2;
+  --link: #1f5fa8;
+  --history: #a3a3a3;
+  --c-baseline: #8a8985;
+  --c-statistical: #2a78d6;
+  --c-ml: #eb6834;
+  --c-foundation: #1baf7a;
+  --bad: #b3401a;
+  --serif: "Newsreader", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --sans: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #161616; --ink: #ececec; --ink-soft: #b0b0b0; --ink-faint: #808080; --line: #303030;
+    --link: #79aef0; --history: #6a6a6a; --c-baseline: #9a9993; --c-statistical: #3987e5;
+    --c-ml: #d95926; --c-foundation: #199e70; --bad: #ec8a5e; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #161616; --ink: #ececec; --ink-soft: #b0b0b0; --ink-faint: #808080; --line: #303030;
+  --link: #79aef0; --history: #6a6a6a; --c-baseline: #9a9993; --c-statistical: #3987e5;
+  --c-ml: #d95926; --c-foundation: #199e70; --bad: #ec8a5e; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: 19px; line-height: 1.55;
+  font-optical-sizing: auto;
+}
+main {
+  max-width: 960px; margin: 0 auto; padding-block: 48px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.text { max-width: 640px; }
+h1 {
+  font-weight: 500; font-size: clamp(34px, 5.5vw, 50px); line-height: 1.08;
+  letter-spacing: -0.015em; margin: 0 0 18px; text-wrap: balance;
+}
+h2 { font-weight: 500; font-size: 28px; line-height: 1.2; margin: 56px 0 12px; text-wrap: balance; }
+p { margin: 0 0 16px; }
+a { color: var(--link); text-underline-offset: 2px; }
+.byline { font-family: var(--sans); font-size: 14px; color: var(--ink-soft); margin-bottom: 32px; }
+
+/* the sentence that doubles as the control panel */
+.controls { font-size: 21px; line-height: 1.9; margin: 36px 0 4px; max-width: 760px; }
+select, .step, .play {
+  font: inherit; font-size: 19px; color: var(--ink); background: transparent;
+  border: 0; border-bottom: 1.5px solid var(--ink); border-radius: 0; padding: 0 2px; cursor: pointer;
+}
+select { padding-right: 4px; }
+.step { border: 0; padding: 0 6px; font-family: var(--sans); font-size: 18px; }
+.step:disabled { color: var(--ink-faint); cursor: default; }
+.play { border: 0; text-decoration: underline; text-underline-offset: 4px; font-style: italic; }
+#when { font-variant-numeric: tabular-nums; font-weight: 600; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; }
+
+.models { font-family: var(--sans); font-size: 15px; color: var(--ink-soft); margin: 8px 0 18px; line-height: 2; }
+.m {
+  font: inherit; color: var(--ink-faint); background: none; border: 0; padding: 0 4px 0 0;
+  margin-right: 10px; cursor: pointer; white-space: nowrap;
+}
+.m .sw { display: inline-block; width: 18px; height: 0; border-top: 3px solid; vertical-align: middle;
+  margin-right: 6px; opacity: .35; }
+.m[aria-pressed="true"] { color: var(--ink); font-weight: 500; }
+.m[aria-pressed="true"] .sw { opacity: 1; }
+.m.dash .sw { border-top-style: dashed; }
+.m.dotted .sw { border-top-style: dotted; }
+
+figure { margin: 0; }
+#chart { width: 100%; height: 430px; }
+#fold { -webkit-appearance: none; appearance: none; width: 100%; height: 18px; margin: 4px 0 0;
+  background: transparent; cursor: pointer; }
+#fold::-webkit-slider-runnable-track { height: 2px; background: var(--line); }
+#fold::-moz-range-track { height: 2px; background: var(--line); }
+#fold::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--ink); margin-top: -6px; border: 0; }
+#fold::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--ink); border: 0; }
+figcaption { font-family: var(--sans); font-size: 14px; color: var(--ink-soft); margin-top: 6px; max-width: 760px; }
+.verdict { font-size: 19px; margin-top: 22px; }
+
+.table-scroll { overflow-x: auto; margin-top: 18px; }
+table { border-collapse: collapse; font-family: var(--sans); font-size: 15px; min-width: 620px; width: 100%; }
+th { text-align: left; font-weight: 500; color: var(--ink-soft); padding: 0 14px 8px 0;
+  border-bottom: 1.5px solid var(--ink); }
+td { padding: 9px 14px 9px 0; vertical-align: middle; }
+tbody tr + tr td { border-top: 1px solid var(--line); }
+td.n { font-variant-numeric: tabular-nums; }
+tbody tr { cursor: pointer; }
+tbody tr:hover td { color: var(--link); }
+.range { position: relative; height: 14px; min-width: 200px; }
+.range .ci { position: absolute; top: 6px; height: 2px; background: var(--ink-faint); }
+.range .pt { position: absolute; top: 2px; width: 10px; height: 10px; border-radius: 50%; margin-left: -5px; }
+.range .one { position: absolute; top: -3px; bottom: -3px; border-left: 1px dotted var(--ink-soft); }
+.worse { color: var(--bad); }
+.key { font-family: var(--sans); font-size: 14px; color: var(--ink-soft); max-width: 760px; margin-top: 14px;
+  border-left: 2px solid var(--line); padding-left: 14px; }
+.key p { margin: 0 0 6px; }
+.key b { color: var(--ink); font-weight: 600; }
+.key-inline { font-size: 16px; color: var(--ink-soft); }
+.example { font-size: 17px; margin-top: 18px; }
+.k-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin: 0 4px 0 2px; vertical-align: 1px; }
+.k-line { display: inline-block; width: 18px; height: 0; border-top: 2px solid; margin: 0 5px 0 4px; vertical-align: 4px; }
+.chart-fallback { font-family: var(--sans); font-size: 15px; color: var(--ink-soft); padding: 40px 0; }
+.dim { color: var(--ink-faint); }
+footer { font-family: var(--sans); font-size: 14px; color: var(--ink-soft); margin-top: 56px; }
+@media (max-width: 600px) {
+  body { font-size: 17px; }
+  .controls { font-size: 18px; }
+  select, .step { font-size: 17px; }
+  #chart { height: 340px; }
+}
+</style>
+
+<main>
+  <div class="text">
+    <h1>Which forecast was right?</h1>
+    <p class="byline">By Krishna. Part of <a href="https://github.com/Krishna-cpp/ts-benchmark">tsbench</a>, my forecasting benchmark.</p>
+    <p>I gave nine forecasting models the same job: look at a time series up to some date, then
+      predict what comes next. Then I moved the date forward and asked again, ten or twelve times
+      per dataset. The models never got to see the future, so every forecast below was a real guess.</p>
+    <p>Pick a dataset and step through the forecasts. The black line is what actually happened. The
+      shaded band around each forecast is the range the model was 80% sure about.</p>
+  </div>
+
+  <p class="controls">
+    Show me <select id="ds" aria-label="Dataset"></select>, forecasting from
+    <button class="step" id="prev" type="button" aria-label="Earlier forecast">&larr;</button><span id="when"></span><button class="step" id="next" type="button" aria-label="Later forecast">&rarr;</button>
+    or <button class="play" id="play" type="button">play them all</button>.
+  </p>
+  <div class="models" id="models" aria-label="Models on the chart"></div>
+
+  <figure>
+    <div id="chart"></div>
+    <input type="range" id="fold" min="0" max="0" value="0" step="1" aria-label="Forecast date">
+    <figcaption id="caption"></figcaption>
+  </figure>
+  <div class="key" aria-label="How to read the chart">
+    <p><span class="k-line" style="border-color:var(--ink);border-top-width:3px"></span><b>Black</b> is what actually happened.
+      <span class="k-line" style="border-color:var(--history)"></span><b>Light gray</b> is the history the models were allowed to see.
+      The dotted vertical line is the date each forecast was made.</p>
+    <p>Colour tells you what kind of model drew a line:
+      <span class="k-dot" style="background:var(--c-baseline)"></span>gray for simple baselines,
+      <span class="k-dot" style="background:var(--c-statistical)"></span>blue for classical statistics,
+      <span class="k-dot" style="background:var(--c-ml)"></span>orange for machine learning, and
+      <span class="k-dot" style="background:var(--c-foundation)"></span>green for IBM's pretrained TTM model.
+      Within a colour, solid, dashed and dotted lines tell the models apart. The faint shaded band
+      around a line is that model's 80% range.</p>
+  </div>
+  <p class="verdict text" id="verdict" aria-live="polite"></p>
+
+  <div class="text">
+    <h2 id="overall-title">Over all the forecasts</h2>
+    <p id="overall-intro"></p>
+    <p class="key-inline">In the middle column, the <span class="k-dot" style="background:var(--ink-soft)"></span>dot is
+      the model's average error, coloured by model type as in the chart. The gray line through it is the
+      95% range for that average: if you reran the benchmark on similar dates, the average would most
+      likely land inside it. The dotted vertical line marks 1, the error of just repeating the last value.
+      Long, overlapping gray lines mean two models can't really be told apart.</p>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead><tr>
+        <th>Model</th><th>Average error (MASE)</th><th>95% range of the average</th><th>Compared with the best</th><th>Inside its 80% band</th>
+      </tr></thead>
+      <tbody id="board"></tbody>
+    </table>
+  </div>
+
+  <p class="text example" id="example"></p>
+
+  <div class="text">
+    <h2>How to read the numbers</h2>
+    <p><b>MASE</b> is the forecast error divided by the error you would get by predicting "same as
+      last time" on the training data. That puts every dataset on the same scale. Lower is better,
+      and the dotted line in the table marks 1.</p>
+    <p>A model marked <span class="worse">worse</span> lost to the best model by more than chance
+      explains (paired Wilcoxon test across the forecast dates, Holm-corrected, 5% level). Everything
+      else is <i>tied</i> with the best: with only ten or twelve dates, the data can't separate them.</p>
+    <p>If a model's band is honest, about 80% of the real values land inside it. Much lower means
+      the model was overconfident.</p>
+  </div>
+
+  <footer class="text">Made by Krishna (<a href="https://github.com/Krishna-cpp">github.com/Krishna-cpp</a>).
+    The data, models and code are all in the
+    <a href="https://github.com/Krishna-cpp/ts-benchmark">ts-benchmark repository</a>. This page is
+    rebuilt from the benchmark's output by <code>python -m tsbench.showcase</code>.</footer>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js"></script>
+<script>
+const DATA = /*__DATA__*/null;
+
+const NAMES = {
+  "Naive": "Naive", "SeasonalNaive": "Seasonal naive", "ETS": "ETS", "Theta": "Theta",
+  "SARIMA": "SARIMA", "ARIMA": "ARIMA", "GBM-level": "GBM on levels", "GBM-diff": "GBM on changes",
+  "TTM": "IBM TTM, zero-shot", "TTM-FT": "IBM TTM, fine-tuned",
+};
+const UNITS = { co2_ppm: "CO₂ (parts per million)", sea_temp_c: "sea temperature (°C)",
+  sunspots: "sunspot number" };
+const DATASET_NAMES = { co2_monthly: "CO₂ at Mauna Loa", elnino_monthly: "El Niño sea temperature",
+  sunspots_yearly: "sunspots" };
+// colour = model family, line style tells models of the same family apart
+const STYLE = {
+  "Naive": ["--c-baseline", "dot"], "SeasonalNaive": ["--c-baseline", "solid"],
+  "ETS": ["--c-statistical", "dot"], "Theta": ["--c-statistical", "dash"],
+  "SARIMA": ["--c-statistical", "solid"], "ARIMA": ["--c-statistical", "solid"],
+  "GBM-level": ["--c-ml", "dot"], "GBM-diff": ["--c-ml", "solid"],
+  "TTM": ["--c-foundation", "dash"], "TTM-FT": ["--c-foundation", "solid"],
+};
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const $ = (id) => document.getElementById(id);
+const name = (m) => NAMES[m] || m;
+const state = { ds: null, fold: 0, shown: new Set(), timer: null };
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } },
+};
+
+const ranked = (ds) => DATA.summary.filter((r) => r.dataset === ds).sort((a, b) => a.mase - b.mase);
+const ds = () => DATA.datasets[state.ds];
+const originOf = (fold) => Object.values(ds().models)[0][fold].origin;
+
+function dateLabel(i) {
+  const d = new Date(ds().dates[i]);
+  return ds().horizon === 12 ? d.toLocaleString("en", { month: "short", year: "numeric", timeZone: "UTC" })
+    : String(d.getUTCFullYear());
+}
+
+function naiveScale(values, origin, lag) {
+  let s = 0, n = 0;
+  for (let i = lag; i < origin; i++) { s += Math.abs(values[i] - values[i - lag]); n++; }
+  return s / n;
+}
+
+function setDataset(key) {
+  stop();
+  state.ds = key; store.set("tsbench-ds", key);
+  const d = ds();
+  state.fold = d.folds[d.folds.length - 1];
+  const r = ranked(key);
+  state.shown = new Set([r[0].model]);
+  for (const m of ["TTM-FT", "Naive"]) if (d.models[m]) state.shown.add(m);
+  $("ds").value = key;
+  $("fold").min = d.folds[0]; $("fold").max = d.folds[d.folds.length - 1];
+  renderModels(); renderTable(); draw();
+}
+
+function renderModels() {
+  const el = $("models");
+  el.innerHTML = "On the chart: ";
+  for (const r of ranked(state.ds)) {
+    const b = document.createElement("button");
+    const st = STYLE[r.model] || ["--ink-soft", "solid"];
+    b.type = "button"; b.id = "m-" + r.model;
+    b.className = "m" + (st[1] === "dash" ? " dash" : st[1] === "dot" ? " dotted" : "");
+    b.setAttribute("aria-pressed", String(state.shown.has(r.model)));
+    b.innerHTML = `<span class="sw" style="border-color:var(${st[0]})"></span>${name(r.model)}`;
+    b.onclick = () => toggle(r.model);
+    el.appendChild(b);
+  }
+}
+
+function toggle(m) {
+  state.shown.has(m) ? state.shown.delete(m) : state.shown.add(m);
+  renderModels(); draw();
+}
+
+function draw() {
+  const d = ds(), h = d.horizon, origin = originOf(state.fold);
+  const ctx = Math.min(origin, 5 * h);
+  const fx = d.dates.slice(origin, origin + h);
+  const scale = naiveScale(d.values, origin, d.scale_lag);
+  const traces = [
+    { x: d.dates.slice(0, origin), y: d.values.slice(0, origin), mode: "lines",
+      line: { color: css("--history"), width: 1.5 }, hovertemplate: "%{y:.2f}<extra>known</extra>" },
+  ];
+  const results = [];
+  const labels = [];
+  for (const r of ranked(state.ds)) {
+    const m = r.model, f = d.models[m] && d.models[m][state.fold];
+    if (!f || !state.shown.has(m)) continue;
+    const st = STYLE[m] || ["--ink-soft", "solid"], color = css(st[0]);
+    if (f.lo[0] !== null) {
+      traces.push({ x: fx.concat([...fx].reverse()), y: f.hi.concat([...f.lo].reverse()), fill: "toself",
+        fillcolor: color, opacity: 0.12, line: { width: 0 }, hoverinfo: "skip" });
+    }
+    traces.push({ x: fx, y: f.pred, mode: "lines", line: { color, width: 2.2, dash: st[1] },
+      hovertemplate: "%{y:.2f}<extra>" + name(m) + "</extra>" });
+    let err = 0, inside = 0;
+    for (let i = 0; i < h; i++) {
+      const a = d.values[origin + i];
+      err += Math.abs(a - f.pred[i]);
+      if (f.lo[i] !== null && a >= f.lo[i] && a <= f.hi[i]) inside++;
+    }
+    results.push({ m, mase: err / h / scale, inside });
+    labels.push({ y: f.pred[h - 1], text: name(m) });
+  }
+  traces.push({ x: d.dates.slice(origin - 1, origin + h), y: d.values.slice(origin - 1, origin + h),
+    mode: "lines", line: { color: css("--ink"), width: 2.6 }, hovertemplate: "%{y:.2f}<extra>actual</extra>" });
+
+  // y-axis fitted to what is on screen (recent history, actuals, forecasts and their bands)
+  const visible = d.values.slice(origin - ctx, origin + h);
+  for (const m of state.shown) {
+    const f = d.models[m] && d.models[m][state.fold];
+    if (f) visible.push(...f.pred, ...f.lo.filter((v) => v !== null), ...f.hi.filter((v) => v !== null));
+  }
+  let lo = Math.min(...visible), hi = Math.max(...visible);
+  const span = hi - lo || 1;
+  lo -= span * 0.06; hi += span * 0.06;
+
+  // direct labels at the right end of each line, pushed apart symmetrically so none overlap
+  labels.push({ y: d.values[origin + h - 1], text: "actual", actual: true });
+  labels.sort((a, b) => a.y - b.y);
+  const gap = (hi - lo) * 0.065;
+  for (let pass = 0; pass < 100; pass++) {
+    let moved = false;
+    for (let i = 1; i < labels.length; i++) {
+      const d2 = labels[i].y - labels[i - 1].y;
+      if (d2 < gap) { const s2 = (gap - d2) / 2; labels[i - 1].y -= s2; labels[i].y += s2; moved = true; }
+    }
+    if (!moved) break;
+  }
+  const annotations = labels.map((l) => ({ x: fx[fx.length - 1], y: l.y, text: l.text, showarrow: false,
+    xanchor: "left", xshift: 8, font: { family: css("--sans"), size: 12,
+      color: l.actual ? css("--ink") : css("--ink-soft") } }));
+
+  const lastX = new Date(fx[fx.length - 1]);
+  const pad = (lastX - new Date(d.dates[origin - ctx])) * 0.24;
+  if (!window.Plotly) {
+    $("chart").innerHTML = '<p class="chart-fallback">The chart library could not load (are you offline?). '
+      + "The text and table below still work.</p>";
+  } else Plotly.react("chart", traces, {
+    margin: { l: 44, r: 8, t: 10, b: 30 }, paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+    font: { family: css("--sans"), color: css("--ink-soft"), size: 12 }, showlegend: false,
+    xaxis: { range: [d.dates[origin - ctx], new Date(+lastX + pad).toISOString().slice(0, 10)],
+      showgrid: false, linecolor: css("--line"), ticks: "outside", tickcolor: css("--line") },
+    yaxis: { range: [lo, hi], gridcolor: css("--line"), zeroline: false, title: { text: UNITS[d.unit] || d.unit, font: { size: 12 } } },
+    hovermode: "x", hoverlabel: { bgcolor: css("--paper"), bordercolor: css("--line"),
+      font: { family: css("--sans"), color: css("--ink"), size: 13 } },
+    shapes: [{ type: "line", x0: d.dates[origin], x1: d.dates[origin], yref: "paper", y0: 0, y1: 1,
+      line: { color: css("--ink-faint"), width: 1, dash: "dot" } }],
+    annotations,
+  }, { displayModeBar: false, responsive: true });
+
+  $("fold").value = state.fold;
+  $("when").textContent = dateLabel(origin);
+  $("prev").disabled = state.fold <= d.folds[0];
+  $("next").disabled = state.fold >= d.folds[d.folds.length - 1];
+  const unit = h === 12 ? "months" : "years";
+  $("caption").textContent = `Forecast ${state.fold + 1} of ${d.folds.length}. Each model saw ${origin} `
+    + `${h === 12 ? "months" : "years"} of history and predicted the next ${h} ${unit}. Drag the slider to change the date.`;
+
+  if (!results.length) { $("verdict").textContent = "Pick at least one model above to see its forecast."; return; }
+  results.sort((a, b) => a.mase - b.mase);
+  const best = results[0];
+  let text = `This time, <b>${name(best.m)}</b> came closest, with an error of ${best.mase.toFixed(2)} MASE`;
+  text += best.inside === h ? `, and every actual value fell inside its band.`
+    : `; ${best.inside} of ${h} actual values fell inside its band.`;
+  if (results.length > 1) {
+    const worst = results[results.length - 1];
+    text += ` ${name(worst.m)} was furthest off at ${worst.mase.toFixed(2)}.`;
+  }
+  $("verdict").innerHTML = text;
+}
+
+function renderTable() {
+  const rows = ranked(state.ds), d = ds();
+  const max = Math.max(...rows.map((r) => r.ci_high), 1.1) * 1.05;
+  const at = (v) => (100 * v / max).toFixed(2) + "%";
+  $("overall-title").textContent = `Over all ${d.folds.length} forecasts of ${DATASET_NAMES[state.ds] || state.ds}`;
+  const best = rows[0];
+  const tied = rows.filter((r) => !r.is_best && !r.significantly_worse).map((r) => name(r.model));
+  $("overall-intro").innerHTML = `<b>${name(best.model)}</b> had the lowest average error. `
+    + (tied.length ? `${tied.length === 1 ? tied[0] + " is" : tied.slice(0, -1).join(", ") + " and " + tied[tied.length - 1] + " are"} statistically tied with it. ` : "No other model came close enough to call it a tie. ")
+    + `Click a row to put that model on the chart.`;
+  const ex = rows.find((r) => r.mase < 1) || rows[0];
+  const naive = rows.find((r) => r.model === "Naive");
+  const pct = Math.round(100 * ex.mase);
+  $("example").innerHTML = `<b>An example.</b> ${name(ex.model)} averages ${ex.mase.toFixed(2)}: its forecast errors were `
+    + `about ${pct}% of what "repeat the last value" gets wrong on the training data`
+    + (naive && naive !== ex ? `, while Naive itself averages ${naive.mase.toFixed(2)} (multi-step forecasts are harder than one step ahead, so even Naive lands above 1).` : ".")
+    + (ex.coverage == null ? "" : ` Its 80% band caught ${Math.round(100 * ex.coverage)}% of the real values, `
+      + (Math.abs(ex.coverage - 0.8) <= 0.06 ? "close to the 80% it promised."
+        : ex.coverage < 0.8 ? "below the 80% it promised, so it was somewhat overconfident."
+        : "above the 80% it promised, so its band was on the cautious side."));
+  $("board").innerHTML = rows.map((r) => {
+    const st = STYLE[r.model] || ["--ink-soft"];
+    const verdict = r.is_best ? "best"
+      : r.significantly_worse ? `<span class="worse">worse</span> <span class="dim">p = ${r.p_vs_best < 0.001 ? "&lt;0.001" : r.p_vs_best.toFixed(3)}</span>`
+      : `tied <span class="dim">p = ${r.p_vs_best.toFixed(2)}</span>`;
+    const cov = r.coverage == null ? "" : `${Math.round(100 * r.coverage)}%`;
+    return `<tr data-m="${r.model}">
+      <td>${name(r.model)}</td>
+      <td class="n">${r.mase.toFixed(2)}</td>
+      <td><div class="range" aria-label="from ${r.ci_low.toFixed(2)} to ${r.ci_high.toFixed(2)}">
+        <div class="one" style="left:${at(1)}"></div>
+        <div class="ci" style="left:${at(r.ci_low)};width:calc(${at(r.ci_high)} - ${at(r.ci_low)})"></div>
+        <div class="pt" style="left:${at(r.mase)};background:var(${st[0]})"></div></div></td>
+      <td>${verdict}</td>
+      <td class="n">${cov}</td></tr>`;
+  }).join("");
+  for (const tr of $("board").querySelectorAll("tr")) tr.onclick = () => {
+    state.shown.add(tr.dataset.m); renderModels(); draw();
+    $("chart").scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+}
+
+function go(delta) {
+  const d = ds();
+  const f = Math.min(d.folds[d.folds.length - 1], Math.max(d.folds[0], state.fold + delta));
+  if (f !== state.fold) { state.fold = f; draw(); }
+}
+function stop() { if (state.timer) { clearInterval(state.timer); state.timer = null; $("play").textContent = "play them all"; } }
+function play() {
+  if (state.timer) return stop();
+  const d = ds();
+  state.fold = d.folds[0]; draw();
+  $("play").textContent = "stop";
+  state.timer = setInterval(() => {
+    if (state.fold >= d.folds[d.folds.length - 1]) return stop();
+    go(1);
+  }, 1200);
+}
+
+for (const key of Object.keys(DATA.datasets)) {
+  const o = document.createElement("option");
+  o.value = key; o.textContent = DATASET_NAMES[key] || key;
+  $("ds").appendChild(o);
+}
+$("ds").addEventListener("change", (e) => setDataset(e.target.value));
+$("prev").addEventListener("click", () => { stop(); go(-1); });
+$("next").addEventListener("click", () => { stop(); go(1); });
+$("play").addEventListener("click", play);
+$("fold").addEventListener("input", (e) => { stop(); state.fold = Number(e.target.value); draw(); });
+
+const redraw = () => { if (state.ds) draw(); };
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", redraw);
+new MutationObserver(redraw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+const saved = store.get("tsbench-ds");
+setDataset(saved && DATA.datasets[saved] ? saved : Object.keys(DATA.datasets)[0]);
+</script>

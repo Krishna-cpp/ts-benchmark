@@ -1,0 +1,36 @@
+{
+  "timestamp": "2026-11-08 09:18 UTC",
+  "runtime_seconds": 2432.856565,
+  "python": "3.11.9",
+  "platform": "Windows-10-10.0.26200-SP0",
+  "packages": {
+    "numpy": "2.4.6",
+    "pandas": "3.1.1",
+    "scikit-learn": "1.7.2",
+    "statsmodels": "0.15.0",
+    "scipy": "1.17.1",
+    "torch": "2.11.0",
+    "granite-tsfm": "0.3.12"
+  },
+  "config": {
+    "datasets": [
+      "co2_monthly",
+      "elnino_monthly",
+      "sunspots_yearly"
+    ],
+    "models": [
+      "Naive",
+      "SeasonalNaive",
+      "ETS",
+      "Theta",
+      "SARIMA",
+      "GBM-level",
+      "GBM-diff",
+      "TTM",
+      "TTM-FT"
+    ],
+    "quick": false,
+    "alpha": 0.2,
+    "calib_windows": 10
+  }
+}
